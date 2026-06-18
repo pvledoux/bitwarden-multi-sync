@@ -768,8 +768,6 @@ function execTransfer(srcId, destId, destFolderId, ids, copy) {
   const moved = [];
   src.folders.forEach(f => f.entries.forEach(e => { if (ids.includes(e.id)) moved.push(e); }));
   if (!copy) src.folders.forEach(f => { f.entries = f.entries.filter(e => !ids.includes(e.id)); });
-  // ponytail: remove from dest first — same-vault reorg has the item in both sides already
-  dest.folders.forEach(f => { f.entries = f.entries.filter(e => !ids.includes(e.id)); });
   const df = dest.folders.find(f => f.id === destFolderId) || dest.folders[0];
   moved.forEach(e => df.entries.unshift(
     copy ? { ...e, id: e.id + '-c' + Math.random().toString(36).slice(2, 6) } : { ...e }

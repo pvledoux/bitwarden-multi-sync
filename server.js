@@ -156,7 +156,8 @@ function syncAndBuildTree(vaultIndex, session) {
   try { collections = JSON.parse(runBw(vaultIndex, ['list', 'collections'], session.token)); } catch (_) {}
 
   // Personal items grouped by folder
-  const folderList = folders.map(f => ({
+  // ponytail: bw list folders includes a null-id "No Folder" entry — skip it, we add our own
+  const folderList = folders.filter(f => f.id !== null).map(f => ({
     id: f.id,
     name: f.name,
     entries: items.filter(item => item.folderId === f.id).map(mapItem),
