@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault Bridge — transfert entre coffres</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark" data-icon="shield"></div>
+      <div class="brand-text">
+        <span class="brand-name">Vault Bridge</span>
+        <span class="brand-sub">Transfert sécurisé entre coffres</span>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="sync-chip">
+      <span class="sync-dot"></span>
+      <span class="sync-label" id="syncLabel">Sync à l'instant</span>
+      <button class="sync-refresh" id="refreshBtn" title="Rafraîchir" data-icon="refresh"></button>
+    </div>
+
+    <button class="theme-toggle" id="themeToggle" title="Basculer le thème"></button>
+  </header>
+
+  <main class="workspace" id="workspace">
+    <!-- les deux colonnes coffre sont injectées par app.js -->
+    <div class="gutter-swap" data-icon="swap"></div>
+  </main>
+
+  <!-- overlays -->
+  <div class="drag-pill" id="dragPill" hidden></div>
+
+  <div class="popover" id="popover" hidden></div>
+
+  <div class="toast" id="toast" hidden>
+    <span class="toast-icon" data-icon="checkc"></span>
+    <span id="toastMsg"></span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
