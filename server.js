@@ -32,6 +32,12 @@ function saveSessions(sessions) {
   fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), { mode: 0o600 });
 }
 
+function safeVaultIdx(v) {
+  const i = Number(v);
+  if (i !== 0 && i !== 1) throw new Error('invalid vault index');
+  return i;
+}
+
 function runBw(vaultIndex, args, sessionToken, password) {
   console.log(`[vault${vaultIndex}] bw ${args.join(' ')}`);
 
@@ -87,8 +93,7 @@ app.get('/api/status', (req, res) => {
 
 // POST /api/auth/:vaultIndex — configure server, login, unlock
 app.post('/api/auth/:vaultIndex', (req, res) => {
-  const i = parseInt(req.params.vaultIndex);
-  if (i !== 0 && i !== 1) return res.status(400).json({ error: 'Invalid vault index' });
+  let i; try { i = safeVaultIdx(req.params.vaultIndex); } catch { return res.status(400).json({ error: 'Invalid vault index' }); }
 
   const { server, method, masterPassword, clientId, clientSecret, email } = req.body;
   if (!server || !masterPassword || !method)
@@ -136,7 +141,7 @@ app.post('/api/auth/:vaultIndex', (req, res) => {
 
 // POST /api/disconnect/:vaultIndex — clear session
 app.post('/api/disconnect/:vaultIndex', (req, res) => {
-  const i = parseInt(req.params.vaultIndex);
+  let i; try { i = safeVaultIdx(req.params.vaultIndex); } catch { return res.status(400).json({ error: 'Invalid vault index' }); }
   const sessions = loadSessions();
   sessions[i] = null;
   saveSessions(sessions);
@@ -186,7 +191,7 @@ function syncAndBuildTree(vaultIndex, session) {
 }
 
 function vaultHandler(req, res) {
-  const i = parseInt(req.params.vaultIndex);
+  let i; try { i = safeVaultIdx(req.params.vaultIndex); } catch { return res.status(400).json({ error: 'Invalid vault index' }); }
   const sessions = loadSessions();
   const session = sessions[i];
   if (!session?.token) return res.status(401).json({ error: 'Not authenticated' });
@@ -208,16 +213,20 @@ app.post('/api/transfer', (req, res) => {
     return res.status(400).json({ error: 'ids, fromVault, toVault, mode requis' });
   }
 
+  let srcIdx, dstIdx;
+  try { srcIdx = safeVaultIdx(fromVault); dstIdx = safeVaultIdx(toVault); }
+  catch { return res.status(400).json({ error: 'Invalid vault index' }); }
+
   const sessions = loadSessions();
-  const srcSession = sessions[parseInt(fromVault)];
-  const dstSession = sessions[parseInt(toVault)];
+  const srcSession = sessions[srcIdx];
+  const dstSession = sessions[dstIdx];
   if (!srcSession?.token) return res.status(401).json({ error: 'Source vault not authenticated' });
   if (!dstSession?.token) return res.status(401).json({ error: 'Destination vault not authenticated' });
 
   let hasAttachments = false;
   try {
     for (const itemId of idList) {
-      const item = JSON.parse(runBw(parseInt(fromVault), ['get', 'item', itemId], srcSession.token));
+      const item = JSON.parse(runBw(srcIdx, ['get', 'item', itemId], srcSession.token));
       if (item.attachments?.length) hasAttachments = true;
 
       delete item.id; delete item.revisionDate; delete item.creationDate; delete item.deletedDate;
@@ -226,13 +235,13 @@ app.post('/api/transfer', (req, res) => {
 
       const enc = spawnSync(BW, ['encode'], {
         input: JSON.stringify(item),
-        env: { ...process.env, BITWARDENCLI_APPDATA_DIR: path.join(CONFIG_DIR, `vault${toVault}`), BW_SESSION: dstSession.token },
+        env: { ...process.env, BITWARDENCLI_APPDATA_DIR: path.join(CONFIG_DIR, `vault${dstIdx}`), BW_SESSION: dstSession.token },
         encoding: 'utf8',
       });
       if (enc.status !== 0) throw new Error('bw encode failed: ' + enc.stderr);
-      runBw(parseInt(toVault), ['create', 'item', enc.stdout.trim()], dstSession.token);
+      runBw(dstIdx, ['create', 'item', enc.stdout.trim()], dstSession.token);
 
-      if (mode === 'move') runBw(parseInt(fromVault), ['delete', 'item', itemId], srcSession.token);
+      if (mode === 'move') runBw(srcIdx, ['delete', 'item', itemId], srcSession.token);
     }
     res.json({ success: true, hasAttachments });
   } catch (err) {
@@ -247,13 +256,14 @@ app.post('/api/delete', (req, res) => {
   if (!idList.length || vaultId == null)
     return res.status(400).json({ error: 'ids et vaultId requis' });
 
+  let vidx; try { vidx = safeVaultIdx(vaultId); } catch { return res.status(400).json({ error: 'Invalid vault index' }); }
   const sessions = loadSessions();
-  const session = sessions[parseInt(vaultId)];
+  const session = sessions[vidx];
   if (!session?.token) return res.status(401).json({ error: 'Vault not authenticated' });
 
   try {
     for (const itemId of idList)
-      runBw(parseInt(vaultId), ['delete', 'item', itemId], session.token);
+      runBw(vidx, ['delete', 'item', itemId], session.token);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -276,4 +286,4 @@ function mapItem(item) {
 }
 
 const PORT = process.env.PORT || 3333;
-app.listen(PORT, () => console.log(`Bitwarden Multi-Sync running at http://localhost:${PORT}`));
+app.listen(PORT, '127.0.0.1', () => console.log(`Bitwarden Multi-Sync running at http://localhost:${PORT}`));
